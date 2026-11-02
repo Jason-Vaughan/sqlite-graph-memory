@@ -10,7 +10,8 @@
 # The only cut is agg's idle-time limit: on an x86_64 Mac CPU the embedding pass
 # takes about a minute and prints nothing (the progress bar is off), so the gif
 # skips that silence. The query is the one from "Three commands" in the README.
-set -e
+set -eo pipefail
+command -v sgm-index sgm-ask > /dev/null || { echo "sgm-index and sgm-ask must be on PATH" >&2; exit 1; }
 export TQDM_DISABLE=1 SGM_NO_STAR_PROMPT=1 TOKENIZERS_PARALLELISM=false
 export TERM="${TERM:-xterm-256color}"   # asciinema rec may start without one, and clear needs it
 demo=$(mktemp -d)

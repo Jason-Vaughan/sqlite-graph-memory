@@ -12,13 +12,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ["README.md", "examples/README.md", "llms.txt"]
 EXTRA = "sqlite-graph-memory[embeddings]"
+PIN = "3.12"  # newest Python with torch wheels on Intel Macs
 
 
 def unpinned_uvx_lines(text):
     """uvx command lines that install the embeddings extra without --python."""
     return [
         line for line in text.splitlines()
-        if "uvx " in line and EXTRA in line and "--python" not in line
+        if "uvx " in line and EXTRA in line and f"--python {PIN}" not in line
     ]
 
 
@@ -28,13 +29,15 @@ def unpinned_json_args(text):
     for body in re.findall(r"```json\n(.*?)```", text, re.S):
         for section in ("mcpServers", "servers"):
             for name, server in json.loads(body).get(section, {}).items():
-                if server.get("command") == "uvx" and "--python" not in server.get("args", []):
+                args = server.get("args", [])
+                if server.get("command") == "uvx" and args[:2] != ["--python", PIN]:
                     bad.append(name)
     return bad
 
 
 def test_detector_catches_the_old_lines():
     assert unpinned_uvx_lines(f"uvx --with '{EXTRA}' sqlite-graph-memory")
+    assert unpinned_uvx_lines(f"uvx --python 3.13 --with '{EXTRA}' sqlite-graph-memory")
     old = '```json\n{"mcpServers": {"x": {"command": "uvx", "args": ["--with", "y"]}}}\n```'
     assert unpinned_json_args(old) == ["x"]
 
@@ -49,12 +52,12 @@ def test_docs_pin_python():
 def test_toml_block_pins_python():
     text = (ROOT / "README.md").read_text(encoding="utf-8")
     toml_args = re.findall(r"^args = \[.*$", text, re.M)
-    assert toml_args and all("--python" in line for line in toml_args)
+    assert toml_args and all(f'"--python", "{PIN}"' in line for line in toml_args)
 
 
 def test_server_json_pins_python():
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))
     args = server["packages"][0]["runtimeArguments"]
-    assert {"name": "--python", "value": "3.12"}.items() <= next(
+    assert {"name": "--python", "value": PIN}.items() <= next(
         a for a in args if a["name"] == "--python"
     ).items()
