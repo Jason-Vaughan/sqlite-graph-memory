@@ -21,6 +21,12 @@
           "name": "--with",
           "value": "sqlite-graph-memory[embeddings]==0.3.5",
           "description": "Recall needs the embedding and reranker models; the base package leaves them out to stay small."
+        },
+        {
+          "type": "named",
+          "name": "--python",
+          "value": "3.12",
+          "description": "torch has no wheels for Python 3.13+ on Intel Macs; the pin keeps uvx from resolving on a newer default Python."
         }
       ],
       "transport": {

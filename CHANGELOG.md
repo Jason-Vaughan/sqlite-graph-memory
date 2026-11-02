@@ -6,6 +6,13 @@ recorded after the fact rather than backdated to look contemporaneous.
 
 ## Unreleased
 
+**`uvx` install lines work on a newer default Python.** On an Intel Mac whose `uv` defaults to Python
+3.13 or 3.14, the install commands failed with "No solution found", because torch has no wheels there.
+Every `uvx` line and `server.json` now pin `--python 3.12`. `pip install` on such a machine still needs
+Python 3.12 or older, and the README says so.
+
+**Shorter demo gif.** It now shows the top 5 of each list, so the graph hit fits on one screen.
+
 ## v0.3.5 - 2026-11-01
 
 **Release fix.** v0.3.4 was tagged but never reached PyPI: the release commit changed only this file, and the publish job stopped on its version check (pyproject, `__init__`, server.json still said 0.3.3). v0.3.5 is the first PyPI build with everything listed under v0.3.4 plus the entries below, with the version set in all four places.
