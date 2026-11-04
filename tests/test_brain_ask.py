@@ -23,6 +23,7 @@ from sqlite_graph_memory.brain_ask import (  # noqa: E402
     _links_in,
     graph_topk,
     retrieve_candidates,
+    index_by_basename,
 )
 
 
@@ -229,6 +230,32 @@ def test_graph_topk_never_exceeds_explicit_topk():
     # Even on a vault large enough to hit the ceiling, an explicit smaller
     # topk (as the eval sweep passes) must still win.
     assert graph_topk(_make_meta(3000), topk=10) == 10
+
+
+def test_index_by_basename_precomputes_n_files():
+    meta = _make_meta(202)
+    by_base = index_by_basename(meta)
+    assert by_base.n_files == 202
+
+
+class _NoIterMeta(list):
+    """A meta stand-in that blows up if iterated, to prove graph_topk reads
+    by_base.n_files instead of rescanning meta when by_base is given."""
+    def __iter__(self):
+        raise AssertionError("graph_topk should read by_base.n_files, not rescan meta")
+
+
+def test_graph_topk_uses_precomputed_n_files_without_rescanning_meta():
+    meta = _make_meta(202)
+    by_base = index_by_basename(meta)
+    guarded_meta = _NoIterMeta(meta)
+    assert graph_topk(guarded_meta, by_base=by_base) == 20
+
+
+def test_graph_topk_without_by_base_falls_back_to_scanning_meta():
+    meta = _make_meta(202)
+    assert graph_topk(meta) == 20
+    assert graph_topk(meta, by_base=None) == 20
 
 
 def test_retrieve_candidates_default_applies_vault_proportional_cap():

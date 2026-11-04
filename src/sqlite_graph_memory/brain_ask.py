@@ -220,7 +220,7 @@ def query_sims(enc, emb, query):
     return emb @ qv
 
 
-def graph_topk(meta, topk=TOPK_RETRIEVE):
+def graph_topk(meta, topk=TOPK_RETRIEVE, by_base=None):
     """Vault-proportional cap on the dense retrieval pool (issue #92).
 
     A fixed TOPK_RETRIEVE floods a small vault's candidate pool with unrelated
@@ -228,8 +228,15 @@ def graph_topk(meta, topk=TOPK_RETRIEVE):
     expand_1hop adds later, while a large vault still wants the full pool.
     Scales down for small vaults, floors at 15, and never exceeds the
     requested topk: min(topk, max(15, n_unique_files // 10)).
+
+    n_unique_files comes from by_base.n_files (precomputed once per index by
+    index_by_basename) when a by_base is passed, so a query path that already
+    built one does not rescan meta; falls back to scanning meta otherwise.
     """
-    n_unique_files = len({m['path'] for m in meta})
+    if by_base is not None:
+        n_unique_files = by_base.n_files
+    else:
+        n_unique_files = len({m['path'] for m in meta})
     return min(topk, max(15, n_unique_files // 10))
 
 
@@ -259,12 +266,14 @@ def _normalize_target(tgt):
 
 
 class _BasenameIndex(dict):
-    """Dict mapping lowercase filename stem -> chunk indices, with precomputed vault `root`."""
-    __slots__ = ('root',)
+    """Dict mapping lowercase filename stem -> chunk indices, with precomputed vault `root`
+    and note count `n_files`."""
+    __slots__ = ('root', 'n_files')
 
-    def __init__(self, *args, root='', **kwargs):
+    def __init__(self, *args, root='', n_files=0, **kwargs):
         super().__init__(*args, **kwargs)
         self.root = root
+        self.n_files = n_files
 
 
 def vault_root(meta):
@@ -283,7 +292,7 @@ def vault_root(meta):
 
 def index_by_basename(meta):
     """basename(no .md) -> meta indices, used to resolve [[wikilink]] targets to chunks."""
-    by_base = _BasenameIndex(root=vault_root(meta))
+    by_base = _BasenameIndex(root=vault_root(meta), n_files=len({m['path'] for m in meta}))
     for j, mm in enumerate(meta):
         by_base.setdefault(Path(mm['path']).stem.lower(), []).append(j)
     return by_base
@@ -471,7 +480,10 @@ def main():
     enc = load_encoder(dev)
     sims = query_sims(enc, emb, query)
 
-    # dense retrieve -> dedup by path (best chunk per file) -> top-K unique files
+    # dense retrieve -> dedup by path (best chunk per file) -> top-K unique files.
+    # retrieve_candidates caps the default pool via graph_topk(meta) on small vaults
+    # (issue #92); base_order below is built from this SAME capped pool for both the
+    # vector-only and --graph paths, so the vector-vs-graph comparison stays apples-to-apples.
     order = retrieve_candidates(sims, meta)
 
     # Graph expansion: follow 1-hop OUTGOING wikilinks from the top vector hits, pull in
