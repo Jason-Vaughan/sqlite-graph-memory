@@ -220,8 +220,27 @@ def query_sims(enc, emb, query):
     return emb @ qv
 
 
-def retrieve_candidates(sims, meta, topk=TOPK_RETRIEVE):
-    """Dense retrieve -> best chunk per file -> top-K unique files (as chunk indices)."""
+def graph_topk(meta, topk=TOPK_RETRIEVE):
+    """Vault-proportional cap on the dense retrieval pool (issue #92).
+
+    A fixed TOPK_RETRIEVE floods a small vault's candidate pool with unrelated
+    notes (e.g. 60 of 202 notes) that crowd out the 1-hop graph neighbours
+    expand_1hop adds later, while a large vault still wants the full pool.
+    Scales down for small vaults, floors at 15, and never exceeds the
+    requested topk: min(topk, max(15, n_unique_files // 10)).
+    """
+    n_unique_files = len({m['path'] for m in meta})
+    return min(topk, max(15, n_unique_files // 10))
+
+
+def retrieve_candidates(sims, meta, topk=None):
+    """Dense retrieve -> best chunk per file -> top-K unique files (as chunk indices).
+
+    topk=None (the default) applies graph_topk's vault-proportional cap; pass
+    an explicit topk to bypass it (the eval sweep needs the uncapped values).
+    """
+    if topk is None:
+        topk = graph_topk(meta)
     order, seen = [], set()
     for i in np.argsort(-sims):
         m = meta[i]

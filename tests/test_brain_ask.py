@@ -13,10 +13,23 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+import numpy as np
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from sqlite_graph_memory.brain_ask import looks_like_entity, _links_in  # noqa: E402
+from sqlite_graph_memory.brain_ask import (  # noqa: E402
+    looks_like_entity,
+    _links_in,
+    graph_topk,
+    retrieve_candidates,
+)
+
+
+def _make_meta(n_files):
+    """One chunk per file, paths note-0.md .. note-{n-1}.md."""
+    return [{'path': 'note-%d.md' % i, 'title': 't%d' % i, 'snippet': 's%d' % i}
+            for i in range(n_files)]
 
 
 @pytest.mark.parametrize(
@@ -193,6 +206,48 @@ def test_expand_1hop_single_subfolder_layout_and_precomputed_root(tmp_path, monk
     monkeypatch.setattr(ba.os.path, "commonpath", _forbid_commonpath)
     assert ba.expand_1hop(sims, meta, [0], by_base=by_base) == [1]
 
+
+
+@pytest.mark.parametrize(
+    ("n_files", "expected"),
+    [
+        # Small vault (issue #92's bench/vault: 202 notes): capped well below 60.
+        (202, 20),
+        # Tiny vault: floors at 15 rather than shrinking further.
+        (50, 15),
+        (10, 15),
+        # Large vault: cap never exceeds TOPK_RETRIEVE (60); default stays untouched.
+        (3000, 60),
+        (600, 60),
+    ],
+)
+def test_graph_topk_scales_with_vault_size(n_files, expected):
+    assert graph_topk(_make_meta(n_files)) == expected
+
+
+def test_graph_topk_never_exceeds_explicit_topk():
+    # Even on a vault large enough to hit the ceiling, an explicit smaller
+    # topk (as the eval sweep passes) must still win.
+    assert graph_topk(_make_meta(3000), topk=10) == 10
+
+
+def test_retrieve_candidates_default_applies_vault_proportional_cap():
+    meta = _make_meta(50)  # graph_topk(50 files) == 15
+    sims = np.arange(len(meta), 0, -1, dtype='float32')  # already best-first
+    order = retrieve_candidates(sims, meta)
+    assert len(order) == 15
+    assert order == list(range(15))
+
+
+def test_retrieve_candidates_explicit_topk_bypasses_cap():
+    # bench/adapters/sgm.py always passes an explicit topk for the eval
+    # sweep; it must get exactly that many candidates, cap or no cap.
+    meta = _make_meta(50)
+    sims = np.arange(len(meta), 0, -1, dtype='float32')
+    order = retrieve_candidates(sims, meta, topk=5)
+    assert len(order) == 5
+    order_full = retrieve_candidates(sims, meta, topk=60)
+    assert len(order_full) == 50  # fewer unique files than requested topk
 
 
 def test_missing_embedding_index_reports_error_and_exits_nonzero(tmp_path):
