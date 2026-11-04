@@ -33,7 +33,7 @@
   "sec_per_question": 0.031,
   "python": "3.14.3"
  },
- "notes": "Reference hybrid RRF row from [TangleClaw](https://github.com/Jason-Vaughan/TangleClaw): whole-note BM25 (k1=1.5, b=0.75) + dense multilingual-e5-base fused via ppr.rrf_fuse (no graph hop, no cross-encoder reranker), capitalized-entity abstention gate, and shared _extract.best_sentence floor; no parameters tuned on the questions, weak on paraphrase answer extraction and absent_attribute (0.00, no LLM reader).",
+ "notes": "Reference hybrid RRF row (whole-note BM25 + e5-base cosine fused via sqlite_graph_memory.ppr.rrf_fuse): k1=1.5, b=0.75 + dense multilingual-e5-base without graph expansion or cross-encoder reranking, capitalized-entity abstention gate, and shared _extract.best_sentence floor; no parameters tuned on the questions, weak on paraphrase answer extraction and absent_attribute (0.00, no LLM reader).",
  "metrics": {
   "overall": {
    "n": 91,
