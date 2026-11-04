@@ -6,5 +6,6 @@ sqlite-graph-memory-vector
 sqlite-fts5
 second-brain       # git clone at a pinned commit, stdlib only
 tangleclaw-style   # stdlib only, hybrid BM25 + FTS5 + 1-hop wikilink graph + frontmatter superseded_by lineage
+hybrid-rrf         # whole-note BM25 + multilingual-e5-base fused via ppr.rrf_fuse (no reranker, no graph hop)
 fidelis            # needs: ollama (service container in the reproduce job)
 mem0-local     # needs: ollama (service container in the reproduce job)

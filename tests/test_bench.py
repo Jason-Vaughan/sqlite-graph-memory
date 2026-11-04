@@ -152,3 +152,72 @@ def test_tangleclaw_style_adapter_and_leaderboard_result():
                          capture_output=True, text=True)
     assert rep.returncode == 0, rep.stdout + rep.stderr
 
+
+def test_hybrid_rrf_adapter_and_leaderboard_result():
+    """hybrid-rrf adapter is registered, fuses BM25 + dense via rrf_fuse offline, and validates on LEADERBOARD.md."""
+    import importlib.util
+    from collections import Counter
+    import numpy as np
+
+    adapter_path = ROOT / 'bench' / 'adapters' / 'hybrid_rrf.py'
+    assert adapter_path.exists(), 'missing bench/adapters/hybrid_rrf.py'
+    spec = importlib.util.spec_from_file_location('bench_adapter_hybrid_rrf', adapter_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert 'hybrid-rrf' in getattr(mod, 'SYSTEMS', {}), 'hybrid-rrf not in SYSTEMS'
+    assert not ({'Project', 'Team', 'Office', 'Lab'} & mod.QWORDS), 'no domain-noun stopwords in QWORDS'
+
+    adapter = mod.make()
+    info = adapter.info()
+    assert info['version'] == 'reference'
+    assert info['config']['reranker'] is None
+    assert info['config']['graph_hops'] == 0
+
+    # Offline unit check of BM25 + dense RRF fusion + unknown-entity abstention without loading a model
+    adapter.raw = {
+        'note-lex': 'Osprey ships version 4.2.1 in production.',
+        'note-sem': 'The routing daemon throttles burst traffic gracefully.',
+    }
+    adapter.tf = {k: Counter( v.lower().replace('.', '').split()) for k, v in adapter.raw.items()}
+    adapter.len = {k: sum(c.values()) for k, c in adapter.tf.items()}
+    adapter.avg = sum(adapter.len.values()) / len(adapter.len)
+    adapter.idf = {t: 1.0 for c in adapter.tf.values() for t in c}
+    adapter.lower_blob = '\n'.join(adapter.raw.values()).lower()
+    adapter.ba = mod.ba
+    adapter.meta = [{'path': 'note-lex.md'}, {'path': 'note-sem.md'}]
+    adapter.emb = np.array([[1.0, 0.0], [0.0, 1.0]], dtype='float32')
+
+    class _StubEncoder:
+        def encode(self, texts, **kwargs):
+            return np.array([[0.2, 0.98]], dtype='float32')
+
+    adapter.enc = _StubEncoder()
+    ans = adapter.ask('What version does Osprey ship in production?')
+    assert ans['retrieved'][:2] == ['note-lex', 'note-sem']
+    assert ans['answer'] == 'Osprey ships version 4.2.1 in production.'
+    assert adapter.ask('What version does Zorblax ship?')['answer'] is None
+
+    res_path = ROOT / 'bench' / 'results' / 'hybrid-rrf.json'
+    assert res_path.exists(), 'missing bench/results/hybrid-rrf.json'
+    res = json.loads(res_path.read_text(encoding='utf-8'))
+    errs = bc.check_result(res, bc.load_questions(), bc.load_vault(),
+                           bc.tree_sha256(bc.VAULT), bc.file_sha256(bc.QUESTIONS), filename=res_path)
+    assert not errs, errs
+    assert res['reproduce']['in_ci'] is True
+    assert 'hybrid-rrf' in bc.ci_reproduced()
+
+    overall = res['metrics']['overall']
+    by_class = res['metrics']['by_class']
+    assert overall['recall@5'] >= 0.89
+    assert overall['recall@10'] >= 0.93
+    assert overall['citation_faithful'] == 1.0
+    assert by_class['fact']['recall@5'] == 1.0
+    assert by_class['paraphrase']['recall@5'] >= 0.80
+    assert by_class['paraphrase']['recall@10'] == 1.0
+    assert by_class['temporal']['recall@5'] == 1.0
+    assert by_class['absent_entity']['abstain_correct'] == 1.0
+
+    board = (ROOT / 'bench' / 'LEADERBOARD.md').read_text(encoding='utf-8')
+    assert '[hybrid-rrf]' in board
+
+
