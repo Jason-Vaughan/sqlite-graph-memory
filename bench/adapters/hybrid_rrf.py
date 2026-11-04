@@ -28,8 +28,14 @@ SYSTEMS = {'hybrid-rrf': {}}
 K1, B = 1.5, 0.75
 CAP_SEQ_RX = re.compile(r"\b[A-Z][a-zA-Z'-]*(?:\s+[A-Z][a-zA-Z'-]*)*")
 QWORDS = {
-    'In', 'What', 'Which', 'Who', 'When', 'Where', 'Why', 'How',
-    'Under', 'On', 'At', 'To', 'From', 'By', 'For',
+    'In', 'What', 'Which', 'Who', 'Whom', 'Whose', 'When', 'Where', 'Why', 'How',
+    'Under', 'On', 'At', 'To', 'From', 'By', 'For', 'If', 'With', 'The', 'A', 'An',
+    'Does', 'Do', 'Did', 'Is', 'Are', 'Was', 'Were', 'Can', 'Could', 'Will', 'Would',
+    'Should', 'Has', 'Have', 'Had',
+    'in', 'what', 'which', 'who', 'whom', 'whose', 'when', 'where', 'why', 'how',
+    'under', 'on', 'at', 'to', 'from', 'by', 'for', 'if', 'with', 'the', 'a', 'an',
+    'does', 'do', 'did', 'is', 'are', 'was', 'were', 'can', 'could', 'will', 'would',
+    'should', 'has', 'have', 'had',
 }
 
 
@@ -41,7 +47,7 @@ class Adapter:
     def info(self):
         return {
             'version': 'reference',
-            'url': 'https://huggingface.co/intfloat/multilingual-e5-base',
+            'url': 'https://github.com/tonydzi/sqlite-graph-memory',
             'config': {
                 'k1': K1,
                 'b': B,
@@ -80,7 +86,7 @@ class Adapter:
 
     def _has_unknown_entity(self, question):
         for m in CAP_SEQ_RX.finditer(question):
-            words = [w for w in m.group(0).split() if w not in QWORDS]
+            words = [w for w in m.group(0).split() if w not in QWORDS and w.lower() not in QWORDS]
             if not words:
                 continue
             phrase = re.sub(r"'s$", '', ' '.join(words).lower())

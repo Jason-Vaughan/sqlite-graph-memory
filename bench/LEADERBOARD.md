@@ -6,7 +6,7 @@ Synthetic vault: 202 notes · 91 questions (69 answerable, 22 with no answer in 
 
 | system | R@5 | R@10 | answer | verbatim cite | faithful quotes | abstains when absent | false abstain ↓ | CI-reproduced | by |
 |---|---:|---:|---:|---:|---:|---:|---:|:---:|---|
-| [hybrid-rrf](https://huggingface.co/intfloat/multilingual-e5-base) `reference` | 0.89 | 0.93 | 0.35 | 0.35 | 1.00 | 0.45 | 0.09 | yes | Jason-Vaughan |
+| [hybrid-rrf](https://github.com/tonydzi/sqlite-graph-memory) `reference` | 0.89 | 0.93 | 0.35 | 0.35 | 1.00 | 0.45 | 0.09 | yes | Jason-Vaughan |
 | [sqlite-graph-memory-vector](https://github.com/tonydzi/sqlite-graph-memory) `0.3.0` | 0.88 | 0.92 | 0.33 | 0.33 | 1.00 | 0.45 | 0.26 | yes | tonydzi |
 | [mem0-local](https://github.com/mem0ai/mem0) `2.2.1` | 0.87 | 0.92 | 0.36 | 0.36 | 1.00 | 0.14 | 0.13 | yes | tonydzi |
 | [fidelis](https://github.com/hermes-labs-ai/fidelis) `0.2.0` | 0.86 | 0.93 | 0.42 | 0.42 | 1.00 | 0.18 | 0.16 | yes | tonydzi |

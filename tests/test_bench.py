@@ -170,6 +170,7 @@ def test_hybrid_rrf_adapter_and_leaderboard_result():
     adapter = mod.make()
     info = adapter.info()
     assert info['version'] == 'reference'
+    assert info['url'] == 'https://github.com/tonydzi/sqlite-graph-memory'
     assert info['config']['reranker'] is None
     assert info['config']['graph_hops'] == 0
 
@@ -195,6 +196,8 @@ def test_hybrid_rrf_adapter_and_leaderboard_result():
     ans = adapter.ask('What version does Osprey ship in production?')
     assert ans['retrieved'][:2] == ['note-lex', 'note-sem']
     assert ans['answer'] == 'Osprey ships version 4.2.1 in production.'
+    assert not adapter._has_unknown_entity('Does Osprey ship?')
+    assert adapter.ask('Does Osprey ship in production?')['answer'] == 'Osprey ships version 4.2.1 in production.'
     assert adapter.ask('What version does Zorblax ship?')['answer'] is None
 
     res_path = ROOT / 'bench' / 'results' / 'hybrid-rrf.json'
