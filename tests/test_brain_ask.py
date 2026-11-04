@@ -277,6 +277,15 @@ def test_retrieve_candidates_explicit_topk_bypasses_cap():
     assert len(order_full) == 50  # fewer unique files than requested topk
 
 
+def test_retrieve_candidates_forwards_by_base_without_rescanning_meta():
+    meta = _make_meta(202)  # graph_topk(202 files) == 20
+    by_base = index_by_basename(meta)
+    sims = np.arange(len(meta), 0, -1, dtype='float32')
+    guarded_meta = _NoIterMeta(meta)  # meta[i] indexing is fine; `for m in meta` is not
+    order = retrieve_candidates(sims, guarded_meta, by_base=by_base)
+    assert len(order) == 20
+
+
 def test_missing_embedding_index_reports_error_and_exits_nonzero(tmp_path):
     """A missing index must reach CLI callers as an error, not empty results."""
     repo_root = Path(__file__).resolve().parents[1]

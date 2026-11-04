@@ -240,14 +240,16 @@ def graph_topk(meta, topk=TOPK_RETRIEVE, by_base=None):
     return min(topk, max(15, n_unique_files // 10))
 
 
-def retrieve_candidates(sims, meta, topk=None):
+def retrieve_candidates(sims, meta, topk=None, by_base=None):
     """Dense retrieve -> best chunk per file -> top-K unique files (as chunk indices).
 
     topk=None (the default) applies graph_topk's vault-proportional cap; pass
     an explicit topk to bypass it (the eval sweep needs the uncapped values).
+    Pass a precomputed by_base (from index_by_basename) so graph_topk reads
+    its cached n_files instead of rescanning meta.
     """
     if topk is None:
-        topk = graph_topk(meta)
+        topk = graph_topk(meta, by_base=by_base)
     order, seen = [], set()
     for i in np.argsort(-sims):
         m = meta[i]
